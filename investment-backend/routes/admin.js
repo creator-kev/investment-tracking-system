@@ -4,12 +4,25 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const adminAuth = require('../middleware/admin');
 const User = require('../models/User');
+const { calculateAndApplyInterest } = require('../utils/interestCalculator');
 const Account = require('../models/Account');
 const Transaction = require('../models/Transaction');
 
 // Apply auth and admin middleware to all routes
 router.use(auth);
 router.use(adminAuth);
+
+// @route   POST api/admin/interest/calculate
+// @desc    Trigger interest calculation for all accounts
+router.post('/interest/calculate', async (req, res) => {
+  try {
+    await calculateAndApplyInterest();
+    res.json({ msg: 'Interest calculation triggered successfully' });
+  } catch (err) {
+    console.error('Error triggering interest calculation:', err);
+    res.status(500).json({ msg: 'Failed to trigger interest calculation' });
+  }
+});
 
 // @route   GET api/admin/users
 // @desc    Get all users

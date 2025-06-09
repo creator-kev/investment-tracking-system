@@ -14,14 +14,17 @@ const { check, validationResult } = require('express-validator');
 router.post('/register', [
   check('name', 'Name is required').not().isEmpty(),
   check('email', 'Please include a valid email').isEmail(),
-  check('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 })
+  check('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 }),
+  check('phone', 'Phone number is required').not().isEmpty()
 ], async (req, res) => {
+  console.log('Register request body:', req.body);
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.log('Validation errors:', errors.array());
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { name, email, password } = req.body;
+  const { name, email, password, phone } = req.body;
 
   try {
     let user = await User.findOne({ email });
@@ -34,6 +37,7 @@ router.post('/register', [
       name, 
       email, 
       password,
+      phone,
       verificationToken
     });
 
@@ -54,6 +58,7 @@ router.post('/register', [
           id: user.id,
           name: user.name,
           email: user.email,
+          phone: user.phone,
           isVerified: user.isVerified,
           kycStatus: user.kycStatus
         }
@@ -110,12 +115,52 @@ router.post('/login', [
   }
 });
 
+ 
 // @route   GET api/auth/me
 // @desc    Get current user
 router.get('/me', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
     res.json(user);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+// @route   PUT api/auth/profile
+// @desc    Update user profile
+router.put('/profile', [
+  auth,
+  check('name', 'Name is required').not().isEmpty(),
+  check('phone', 'Phone number is required').not().isEmpty()
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { name, phone } = req.body;
+
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+
+    user.name = name;
+    user.phone = phone;
+    await user.save();
+
+    res.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      isVerified: user.isVerified,
+      kycStatus: user.kycStatus,
+      role: user.role
+    });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
